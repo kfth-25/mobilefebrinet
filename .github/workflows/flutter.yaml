@@ -34,6 +34,16 @@ jobs:
         with:
           channel: 'stable'
 
+      # ⚡ Caching Dependencies (Biar build selanjutnya lebih cepet)
+      - name: ⚡ Cache Flutter Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
       - name: 🔍 Check Flutter Version
         run: flutter --version
 
@@ -43,8 +53,8 @@ jobs:
       - name: 📦 Install Dependencies
         run: flutter pub get
 
-      - name: 🏗️ Build APK (Split per ABI)
-        run: flutter build apk --release --split-per-abi
+      - name: 🏗️ Build APK (Prod Release)
+        run: flutter build apk --release --flavor prod --split-per-abi
 
       - name: 📤 Upload APK Artifacts
         uses: actions/upload-artifact@v4
@@ -56,7 +66,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          name: "Release ${{ github.ref_name }}"
           files: build/app/outputs/flutter-apk/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,21 +75,20 @@ jobs:
         run: |
           curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
           -d chat_id="$TELEGRAM_CHAT_ID" \
-          --data-urlencode "text=✅ Build APK (Split) berhasil untuk commit ${{ github.sha }}"
+          --data-urlencode "text=✅ Build APK Berhasil! Commit: ${{ github.sha }}"
           
       - name: ❌ Notify Telegram (Failed)
         if: failure()
         run: |
           curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
           -d chat_id="$TELEGRAM_CHAT_ID" \
-          --data-urlencode "text=❌ Build gagal di workflow GitHub Actions"
+          --data-urlencode "text=❌ Build Gagal di GitHub Actions!"
 
       - name: 📤 Send All APKs to Telegram
         if: success()
         run: |
           for apk in build/app/outputs/flutter-apk/*.apk; do
             filename=$(basename "$apk")
-            echo "Sending $filename..."
             curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument" \
             -F chat_id="$TELEGRAM_CHAT_ID" \
             -F document="@$apk" \
