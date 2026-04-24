@@ -12,7 +12,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Definisikan di sini biar linter nggak komplain di tiap step
     env:
       TELEGRAM_BOT_TOKEN: "${{ secrets.TELEGRAM_BOT_TOKEN }}"
       TELEGRAM_CHAT_ID: "${{ secrets.TELEGRAM_CHAT_ID }}"
@@ -24,7 +23,10 @@ jobs:
       - name: 🐦 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.2'
+          flutter-version: '3.41.7'
+
+      - name: 🔍 Check Flutter Version
+        run: flutter --version
 
       - name: 📦 Install Dependencies
         run: flutter pub get
