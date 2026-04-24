@@ -1,4 +1,4 @@
-name: Flutter CI
+name: Flutter CI/CD Pro
 
 on:
   push:
@@ -11,7 +11,12 @@ permissions:
 
 jobs:
   build:
+    name: Build APK (${{ matrix.flavor }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        flavor: [dev, prod]  # Matrix Build sesuai Praktikum 5
+    
     env:
       TELEGRAM_BOT_TOKEN: "${{ secrets.TELEGRAM_BOT_TOKEN }}"
       TELEGRAM_CHAT_ID: "${{ secrets.TELEGRAM_CHAT_ID }}"
@@ -20,21 +25,18 @@ jobs:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 📄 Check pubspec.yaml
-        run: cat pubspec.yaml
-
       - name: ☕ Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '21'
+          java-version: '17'
 
       - name: 🐦 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
 
-      # ⚡ Caching Dependencies (Biar build selanjutnya lebih cepet)
+      # ⚡ Caching Dependencies (Praktikum 5)
       - name: ⚡ Cache Flutter Dependencies
         uses: actions/cache@v4
         with:
@@ -44,47 +46,27 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-flutter-
 
-      - name: 🔍 Check Flutter Version
-        run: flutter --version
-
-      - name: 🧹 Clean Project
-        run: flutter clean
-
       - name: 📦 Install Dependencies
         run: flutter pub get
 
-      - name: 🏗️ Build APK (Prod Release)
-        run: flutter build apk --release --flavor prod --split-per-abi
+      # 🏗️ Build APK sesuai Matrix (Dev / Prod)
+      - name: 🏗️ Build APK (${{ matrix.flavor }})
+        run: flutter build apk --release --flavor ${{ matrix.flavor }} --split-per-abi
 
       - name: 📤 Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: app-${{ matrix.flavor }}
           path: build/app/outputs/flutter-apk/*.apk
 
-      - name: 🚀 Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/app/outputs/flutter-apk/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 📢 Notify Telegram (Success)
+      - name: 📢 Notify Telegram
         if: success()
         run: |
           curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
           -d chat_id="$TELEGRAM_CHAT_ID" \
-          --data-urlencode "text=✅ Build APK Berhasil! Commit: ${{ github.sha }}"
-          
-      - name: ❌ Notify Telegram (Failed)
-        if: failure()
-        run: |
-          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-          -d chat_id="$TELEGRAM_CHAT_ID" \
-          --data-urlencode "text=❌ Build Gagal di GitHub Actions!"
+          --data-urlencode "text=✅ Build APK (${{ matrix.flavor }}) Berhasil! Commit: ${{ github.sha }}"
 
-      - name: 📤 Send All APKs to Telegram
+      - name: 📤 Send APK to Telegram
         if: success()
         run: |
           for apk in build/app/outputs/flutter-apk/*.apk; do
@@ -92,5 +74,5 @@ jobs:
             curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument" \
             -F chat_id="$TELEGRAM_CHAT_ID" \
             -F document="@$apk" \
-            -F caption="📦 APK: $filename 🚀"
+            -F caption="📦 APK ${{ matrix.flavor }}: $filename 🚀"
           done
