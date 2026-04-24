@@ -11,13 +11,13 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.toVersion("24")
-        targetCompatibility = JavaVersion.toVersion("24")
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
         isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = "24"
+        jvmTarget = "21"
     }
 
     defaultConfig {
@@ -36,7 +36,6 @@ android {
         create("dev") {
             dimension = "version"
             applicationIdSuffix = ".dev"
-            versionNameSuffix = "-dev"
         }
         create("prod") {
             dimension = "version"
@@ -44,7 +43,7 @@ android {
     }
 
     buildTypes {
-        release {
+        getByName("release") {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
@@ -61,5 +60,5 @@ dependencies {
 }
 
 kotlin {
-    jvmToolchain(24)
+    jvmToolchain(21)
 }
