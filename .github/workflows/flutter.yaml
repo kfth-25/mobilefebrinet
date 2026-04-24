@@ -20,6 +20,9 @@ jobs:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
+      - name: 📄 Check pubspec.yaml
+        run: cat pubspec.yaml
+
       - name: 🐦 Setup Flutter
         uses: subosito/flutter-action@v2
         with:
