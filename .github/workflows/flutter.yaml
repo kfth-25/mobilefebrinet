@@ -28,6 +28,9 @@ jobs:
       - name: 🔍 Check Flutter Version
         run: flutter --version
 
+      - name: 🧹 Clean Project
+        run: flutter clean
+
       - name: 📦 Install Dependencies
         run: flutter pub get
 
