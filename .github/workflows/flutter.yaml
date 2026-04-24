@@ -1,0 +1,77 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Definisikan di sini biar linter nggak komplain di tiap step
+    env:
+      TELEGRAM_BOT_TOKEN: "${{ secrets.TELEGRAM_BOT_TOKEN }}"
+      TELEGRAM_CHAT_ID: "${{ secrets.TELEGRAM_CHAT_ID }}"
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0' 
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 🧪 Run Tests
+        run: flutter test
+
+      - name: 🏗️ Build APK (Split per ABI)
+        run: flutter build apk --release --split-per-abi
+
+      - name: 📤 Upload APK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: build/app/outputs/flutter-apk/*.apk
+
+      - name: 🚀 Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Release ${{ github.ref_name }}"
+          files: build/app/outputs/flutter-apk/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📢 Notify Telegram (Success)
+        if: success()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+          -d chat_id="$TELEGRAM_CHAT_ID" \
+          --data-urlencode "text=✅ Build APK (Split) berhasil untuk commit ${{ github.sha }}"
+          
+      - name: ❌ Notify Telegram (Failed)
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+          -d chat_id="$TELEGRAM_CHAT_ID" \
+          --data-urlencode "text=❌ Build gagal di workflow GitHub Actions"
+
+      - name: 📤 Send All APKs to Telegram
+        if: success()
+        run: |
+          for apk in build/app/outputs/flutter-apk/*.apk; do
+            filename=$(basename "$apk")
+            echo "Sending $filename..."
+            curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument" \
+            -F chat_id="$TELEGRAM_CHAT_ID" \
+            -F document="@$apk" \
+            -F caption="📦 APK: $filename 🚀"
+          done
